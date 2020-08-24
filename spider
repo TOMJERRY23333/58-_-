@@ -19,7 +19,7 @@ store_list = []
 class HouseRent(object):
     """
     爬虫包括URL管理，html获取，html解析，数据存储，爬虫调度五个模块
-    采集模块：多线程+爬虫
+    采集模块：多线程+爬虫（此后可会添加多线程，进一步提高采集速度）
     """
 
     def __init__(self, page_num, spider_num):
