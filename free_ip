@@ -1,0 +1,97 @@
+# coding:utf-8
+"""获取免费IP代理的模块"""
+import requests
+from bs4 import BeautifulSoup
+from fake_useragent import UserAgent
+import random as ran
+
+
+# 免费IP代理网站
+ROOT_URL = 'http://www.89ip.cn/index_'
+# IP缓冲列表
+ip_list = []
+# 验证ip是否可用的网站
+CHECK_URL = 'https://www.baidu.com'
+
+
+class IpPool(object):
+    def __init__(self):
+        self.user_agent = UserAgent()
+        self.ip_url = ROOT_URL
+        self.ip_list = ip_list
+        self.check_url = CHECK_URL
+
+    def _get_ip(self, page_num):
+        """ 爬取免费ip
+        :param page_num: int
+         IP列表的页数
+        :return: list
+         未经筛选的IP列表
+        """
+        try:
+            headers = {'User-Agent': self.user_agent.random}
+        except AttributeError:
+            headers = {
+                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) '
+                              'AppleWebKit/537.36 (KHTML, like Gecko) '
+                              'Chrome/84.0.4147.105 Safari/537.36 '}
+        url = self.ip_url + '{page}'.format(page=page_num)
+        response = requests.get(url, headers=headers)
+        soup = BeautifulSoup(response.text, 'html.parser')
+        items = soup.find_all('td')
+        for i, j in zip(items[::5], items[1::5]):
+            ip_port = i.text.replace('\t', '').replace('\n', '') \
+                      + ':' + j.text.replace('\n', '').replace('\t', '')
+            self.ip_list.append(ip_port)
+
+    def _judge(self, ip_port):
+        """ 判断IP是否可用
+        :param ip_port: str
+        格式为(ip:port)的字符串
+        :return: bool(True/False)
+        可用IP返回True，不可用返回False
+        """
+        proxies = {'http': 'http://' + ip_port,
+                   'https': 'https://' + ip_port}
+        try:
+            res = requests.get(self.check_url, headers=UserAgent.random
+                               , proxies=proxies)
+        except Exception as e:
+            print(e)
+            return False
+        else:
+            if 200 <= res.status_code < 300:
+                # 返回的状态码在200到300之间表示请求成功
+                return True
+            else:
+                print('请求失败')
+                return False
+
+    def _get_random_ip(self):
+        """从爬取的ip_list中随机获取一个ip
+        :return: str/NONE
+        根据IP判断函数的返回结果：若为True，则返回可用IP，
+        ip_list中无可用ip，返回NONE
+        关联函数：
+        :self.judge()
+        """
+        while self.ip_list:
+            ip_port = ran.choice(self.ip_list)
+            result1 = self._judge(ip_port)
+            if result1 is not False:
+                proxies = {'http': 'http://' + ip_port,
+                           'https': 'https://' + ip_port}
+                return proxies
+            else:
+                ip_list.remove(ip_port)
+        return None
+
+    def run(self):
+        """ 对三个部分进行调度
+        :return: dic/NONE
+        返回可用的ip字典或者NONE
+        """
+        for x in range(1,):
+            self._get_ip(x)
+        return self._get_random_ip()
+        
