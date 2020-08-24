@@ -1,0 +1,179 @@
+# coding:utf-8
+"""此为一个爬取模块，爬取对象：58同城海口房屋租赁信息"""
+
+from spider.preIntro import *
+from spider.anti_reptile import AntiReptile
+
+"""#######################################################"""
+# 58同城房屋出租域名
+ROOT_URL = 'https://haikou.58.com/chuzu/page='
+# 存储地址
+STORE_PATH = os.path.abspath(os.path.dirname(os.path.dirname(__file__)))\
+             + '/database/房屋租赁数据.csv'
+# 存储列表
+url_queue = Queue()
+store_list = []
+"""#######################################################"""
+
+
+class HouseRent(object):
+    """
+    爬虫包括URL管理，html获取，html解析，数据存储，爬虫调度五个模块
+    采集模块：多线程+爬虫
+    """
+
+    def __init__(self, page_num, spider_num):
+        self.fake_user = UserAgent()
+        # self.ip_pool = IpPool()
+        self.out_path = STORE_PATH
+        self.page_num = page_num  # 抓取的网页数目
+        self.crawler_num = spider_num  # 多线程开启的爬虫数目
+        self.anti_reptile = AntiReptile()  # 反反爬虫之字体
+        self.process = tqdm(total=self.page_num, desc='SpiderNest')
+
+    def url_manager(self):
+        """
+        构造每一个房屋租赁的网页地址
+        :return: 网页地址列表
+        """
+        # 构造网页URL
+        made_url = ROOT_URL + '{page}'
+        for x in range(self.page_num):
+            step1_url = made_url.format(page=x)
+            url_queue.put_nowait(step1_url)
+
+    def html_download(self, url=None):
+        """
+        :param url: 要抓取的目的页面地址
+        :return: 返回相应HTML页面（包含目标数据）
+        """
+        # 当任务队列为空时，默认访根域名
+        if url is None:
+            url = ROOT_URL
+        # 生成随机请求头
+        try:
+            headers = {'User-Agent': str(self.fake_user.random)}
+        except AttributeError:
+            headers = {
+                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) '
+                              'AppleWebKit/537.36 (KHTML, like Gecko) '
+                              'Chrome/84.0.4147.105 Safari/537.36 '}
+        try:
+            # 获取ip代理
+            ip_port = self.anti_reptile.get_ip()
+            proxies = {'http': ip_port,
+                       'https': ip_port
+                       }
+            # 忽略并隐藏SSL证书警告
+            requests.packages.urllib3.disable_warnings(InsecureRequestWarning)
+            response = requests.get(url, headers=headers, verify=False, proxies=proxies)
+            response.raise_for_status()
+            # response.encoding = 'utf-8'
+            return response.text
+        except Exception as e:
+            print(e)
+            # 抓取出错的url再放入待爬列表
+            url_queue.put_nowait(url)
+            return False
+
+    def html_parser(self, response=False):
+        """
+        文本解析模块
+        :param response: html文本 html_download函数返回的信息
+        :return: 列表的列表 列表的每一个列表包含有项目名，链接，房屋形式，所在区域，租赁价格
+
+        关联函数：反反爬虫 font_convent()
+        """
+
+        if response is False:
+            print('解析失败')
+        else:
+            tree = etree.HTML(response)
+            LIST_INDEX = '//li[@class="house-cell"]'
+            TITLE_INDEX = './div[2]/h2/a[1]'
+            URL_INDEX = './/h2/a/@href'
+            PRICE_INDEX = './/div[@class="money"]/b/text()'
+            TYPE_INDEX = './/p[@class="room"]/text()'
+            DOMAIN_INDEX = './/p[@class="infor"]/a/text()'
+            house_list = tree.xpath(LIST_INDEX)
+            for item in house_list:
+                try:
+                    # 出租项目标题
+                    title = item.xpath(TITLE_INDEX)[0].text.strip()
+                    # 出租项目链接
+                    url = item.xpath(URL_INDEX)[0]
+                    # 出租房屋类型
+                    house_type = item.xpath(TYPE_INDEX)[0].strip().replace(' ', '')
+                    # 出租房屋所在区域
+                    house_region = item.xpath(DOMAIN_INDEX)[0].strip()
+                    # 出租房屋的价格
+                    house_price = item.xpath(PRICE_INDEX)[0].strip().replace(' ', '')
+                except AttributeError:
+                    raise AttributeError
+                # 反反爬虫：将特有uni字符转换为数字
+                title, house_type, house_price = \
+                    self.anti_reptile.font_convent(title, house_type, house_price)
+                # 组成列表加入另一个列表
+                store_list.append([title, url, house_type, house_region, house_price])
+
+    def data_store(self, out_flow):
+        """
+        对爬取的列表形式的数据进行存储
+        :param out_flow: 列表的列表 目的数据流
+        :return:
+        """
+
+        # 创建csv文件对象
+        csv_file = open(self.out_path, 'w', newline='', encoding='utf-16')
+        writer = csv.writer(csv_file)
+        writer.writerow(["项目名", "链接", "房屋形式", "房屋区域", "租赁价格"])
+
+        # 数据流一次写入
+        writer.writerows(out_flow)
+
+    def multi_program(self, crawler):
+        """ 创建多线程
+        :param crawler: 函数对象 为一个爬虫函数
+        :return: 列表 内容为多个爬虫线程的任务列表
+        """
+        tasks_list = []
+        for x in range(self.crawler_num):
+            task = gevent.spawn(crawler)
+            tasks_list.append(task)
+        return tasks_list
+
+    def crawler(self):
+        """一个爬虫函数（包含页面下载和页面解析）
+        :return:
+        关联函数：html_download(), html_parser()
+        """
+        # 一次爬取流程
+        while not url_queue.empty():
+            url = url_queue.get_nowait()
+            response = self.html_download(url)
+            self.html_parser(response)
+            self.process.update(1)
+
+    def run(self):
+        """
+        数据采集模块的整个流程(采用多线程）
+        :return:
+        关联函数：multi_program(), crawler(),data_store()
+        """
+        # 采集流程
+        self.url_manager()
+        task_list = self.multi_program(self.crawler)
+        gevent.joinall(task_list)
+
+        self.process.close()
+        print('总共采集数据项' + str(len(store_list)))
+
+        # 数据写入
+        self.data_store(store_list)
+
+
+if __name__ == '__main__':
+    url_page = 10
+    crawler_num = 2
+    layer = HouseRent(url_page, crawler_num)
+    layer.run()
