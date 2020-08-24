@@ -1,0 +1,132 @@
+# coding:utf-8
+"""应对字体反爬虫机制的处理模块"""
+
+import base64
+
+"""#######################################################"""
+# 存放ip代理
+ip_list = []
+# 代理服务器
+PROXY_HOST = "dyn.horocn.com"
+PROXY_PORT = "50000"
+# 代理隧道验证信息
+PROXY_USER = 'FZW51675529966207335'
+PROXY_PASS = 'MICsZgPcA4ccZK5S'
+"""#######################################################"""
+
+
+# 将数字和与数字相对应的uni字符作成的映射表写入tff文件
+font_face = 'AAEAAAALAIAAAwAwR1NVQiCLJXoAAAE4AAAAVE9TLzL4XQjtAAABjAAAAFZjbWFwq8d' \
+            '/YAAAAhAAAAIuZ2x5ZuWIN0cAAARYAAADdGhlYWQaPwIvAAAA4AAAADZoaGVhCtADIwAAAL' \
+            'wAAAAkaG10eC7qAAAAAAHkAAAALGxvY2ED7gSyAAAEQAAAABhtYXhwARgANgAAARgAAAAgbmF' \
+            'tZTd6VP8AAAfMAAACanBvc3QEQwahAAAKOAAAAEUAAQAABmb+ZgAABLEAAAAABGgAAQAAAAAAA' \
+            'AAAAAAAAAAAAAsAAQAAAAEAAOBblEhfDzz1AAsIAAAAAADbW9uPAAAAANtb248AAP/mBGgGLgAA' \
+            'AAgAAgAAAAAAAAABAAAACwAqAAMAAAAAAAIAAAAKAAoAAAD/AAAAAAAAAAEAAAAKADAAPgACREZM' \
+            'VAAObGF0bgAaAAQAAAAAAAAAAQAAAAQAAAAAAAAAAQAAAAFsaWdhAAgAAAABAAAAAQAEAAQAAAABAA' \
+            'gAAQAGAAAAAQAAAAEERAGQAAUAAAUTBZkAAAEeBRMFmQAAA9cAZAIQAAACAAUDAAAAAAAAAAAAAAAAA' \
+            'AAAAAAAAAAAAFBmRWQAQJR2n6UGZv5mALgGZgGaAAAAAQAAAAAAAAAAAAAEsQAABLEAAASxAAAEsQA' \
+            'ABLEAAASxAAAEsQAABLEAAASxAAAEsQAAAAAABQAAAAMAAAAsAAAABAAAAaYAAQAAAAAAoAADAAEAAAA' \
+            'sAAMACgAAAaYABAB0AAAAFAAQAAMABJR2lY+ZPJpLnjqeo59kn5Kfpf//AACUdpWPmTyaS546nqOfZJ+' \
+            'Sn6T//wAAAAAAAAAAAAAAAAAAAAAAAAABABQAFAAUABQAFAAUABQAFAAUAAAACQAHAAMAAQAIAAQACgA' \
+            'CAAUABgAAAQYAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA' \
+            'AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA' \
+            'AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA' \
+            'AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA' \
+            'AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAADAAAAAAAiAAAAAAAAAAKAACUdgAAlHYAAAAJAACVjwAAlY' \
+            '8AAAAHAACZPAAAmTwAAAADAACaSwAAmksAAAABAACeOgAAnjoAAAAIAACeowAAnqMAAAAEAACfZAAA' \
+            'n2QAAAAKAACfkgAAn5IAAAACAACfpAAAn6QAAAAFAACfpQAAn6UAAAAGAAAAAAAAACgAPgBmAJoAv' \
+            'gDoASQBOAF+AboAAgAA/+YEWQYnAAoAEgAAExAAISAREAAjIgATECEgERAhIFsBEAECAez+6/rs/v' \
+            '3IATkBNP7S/sEC6AGaAaX85v54/mEBigGB/ZcCcwKJAAABAAAAAAQ1Bi4ACQAAKQE1IREFNSURIQQ' \
+            '1/IgBW/6cAicBWqkEmGe0oPp7AAEAAAAABCYGJwAXAAApATUBPgE1NCYjIgc1NjMyFhUUAgcBFSEE' \
+            'GPxSAcK6fpSMz7y389Hym9j+nwLGqgHButl0hI2wx43iv5D+69b+pwQAAQAA/+YEGQYnACEAABMWM' \
+            'zI2NRAhIzUzIBE0ISIHNTYzMhYVEAUVHgEVFAAjIiePn8igu/5bgXsBdf7jo5CYy8bw/sqow/7T+ty' \
+            'HAQN7nYQBJqIBFP9uuVjPpf7QVwQSyZbR/wBSAAACAAAAAARoBg0ACgASAAABIxEjESE1ATMRMyERN' \
+            'DcjBgcBBGjGvv0uAq3jxv58BAQOLf4zAZL+bgGSfwP8/CACiUVaJlH9TwABAAD/5gQhBg0AGAAANxY' \
+            'zMjYQJiMiBxEhFSERNjMyBBUUACEiJ7GcqaDEx71bmgL6/bxXLPUBEv7a/v3Zbu5mswEppA4DE63+S' \
+            'gX42uH+6kAAAAACAAD/5gRbBicAFgAiAAABJiMiAgMzNjMyEhUUACMiABEQACEyFwEUFjMyNjU0JiM' \
+            'iBgP6eYTJ9AIFbvHJ8P7r1+z+8wFhASClXv1Qo4eAoJeLhKQFRj7+ov7R1f762eP+3AFxAVMBmgHjL' \
+            'fwBmdq8lKCytAAAAAABAAAAAARNBg0ABgAACQEjASE1IQRN/aLLAkD8+gPvBcn6NwVgrQAAAwAA/+YES' \
+            'gYnABUAHwApAAABJDU0JDMyFhUQBRUEERQEIyIkNRAlATQmIyIGFRQXNgEEFRQWMzI2NTQBtv7rAQTKu' \
+            'fD+3wFT/un6zf7+AUwBnIJvaJLz+P78/uGoh4OkAy+B9avXyqD+/osEev7aweXitAEohwF7aHh9YcJlZ' \
+            '/7qdNhwkI9r4QAAAAACAAD/5gRGBicAFwAjAAA3FjMyEhEGJwYjIgA1NAAzMgAREAAhIicTFBYzMjY1N' \
+            'CYjIga5gJTQ5QICZvHD/wABGN/nAQT+sP7Xo3FxoI16pqWHfaTSSgFIAS4CAsIBDNbkASX+lf6l/lP+Mj' \
+            'UEHJy3p3en274AAAAAABAAxgABAAAAAAABAA8AAAABAAAAAAACAAcADwABAAAAAAADAA8AFgABAAAAAAA' \
+            'EAA8AJQABAAAAAAAFAAsANAABAAAAAAAGAA8APwABAAAAAAAKACsATgABAAAAAAALABMAeQADAAEECQABA' \
+            'B4AjAADAAEECQACAA4AqgADAAEECQADAB4AuAADAAEECQAEAB4A1gADAAEECQAFABYA9AADAAEECQAGAB' \
+            '4BCgADAAEECQAKAFYBKAADAAEECQALACYBfmZhbmdjaGFuLXNlY3JldFJlZ3VsYXJmYW5nY2hhbi1zZWN' \
+            'yZXRmYW5nY2hhbi1zZWNyZXRWZXJzaW9uIDEuMGZhbmdjaGFuLXNlY3JldEdlbmVyYXRlZCBieSBzdmcy' \
+            'dHRmIGZyb20gRm9udGVsbG8gcHJvamVjdC5odHRwOi8vZm9udGVsbG8uY29tAGYAYQBuAGcAYwBoAGEA' \
+            'bgAtAHMAZQBjAHIAZQB0AFIAZQBnAHUAbABhAHIAZgBhAG4AZwBjAGgAYQBuAC0AcwBlAGMAcgBlAH' \
+            'QAZgBhAG4AZwBjAGgAYQBuAC0AcwBlAGMAcgBlAHQAVgBlAHIAcwBpAG8AbgAgADEALgAwAGYAYQBu' \
+            'AGcAYwBoAGEAbgAtAHMAZQBjAHIAZQB0AEcAZQBuAGUAcgBhAHQAZQBkACAAYgB5ACAAcwB2AGcAMg' \
+            'B0AHQAZgAgAGYAcgBvAG0AIABGAG8AbgB0AGUAbABsAG8AIABwAHIAbwBqAGUAYwB0AC4AaAB0AHQA' \
+            'cAA6AC8ALwBmAG8AbgB0AGUAbABsAG8ALgBjAG8AbQAAAAIAAAAAAAD/EwB3AAAAAAAAAAAAAAAAAA' \
+            'AAAAAAAAAACwECAQMBBAEFAQYBBwEIAQkBCgELAQwAAAAAAAAAAAAAAAAAAAAA '
+
+# 对映射表进行解码
+b = base64.b64decode(font_face)
+
+# 写入ttf文件
+with open('58.ttf', 'wb') as f:
+    f.write(b)
+
+# 以unicode编码方式将映射关系写入字典中
+diction = {'\u9a4b': '\u0030', '\u9f92': '\u0031', '\u993c': '\u0032',
+           '\u9ea3': '\u0033', '\u9fa4': '\u0034', '\u9fa5': '\u0035',
+           '\u958f': '\u0036', '\u9e3a': '\u0037', '\u9476': '\u0038',
+           '\u9f64': '\u0039'}
+
+
+class AntiReptile(object):
+    """反反爬虫类：字体反爬与IP代理"""
+
+    def __init__(self):
+        self.font_diction = diction
+        self.proxy_host = PROXY_HOST
+        self.proxy_port = PROXY_PORT
+        self.proxy_user = PROXY_USER
+        self.proxy_pass = PROXY_PASS
+
+    # 字体反爬-映射转换
+    def font_convent(self, title, room, price):
+        """
+        根据获得的映射字典，将文本内容中uni字符转换为数字
+        :param title: str 标题
+        :param room: str 房屋形式
+        :param price: str 价格
+        :return: 返回经转换后的对应文本
+        """
+        for key in self.font_diction.keys():
+            title = title.replace(key, diction[key]).strip()
+            room = room.replace(key, diction[key]).strip()
+            price = price.replace(key, diction[key]).strip()  # 对有数字的对象中采用映射表替换
+        return title, room, price
+
+    # IP代理--接API
+    def get_ip(self,):
+        """
+        使用第三方提供的API接口获取代理IP
+        :return: str 一个proxy
+        """
+        try:
+            proxy = "http://%(user)s:%(pass)s@%(host)s:%(port)s" % {
+                "host": self.proxy_host,
+                "port": self.proxy_port,
+                "user": self.proxy_user,
+                "pass": self.proxy_pass}
+        except Exception as e:
+            print(e)
+            return None
+        # API_URL = ''
+        # res = requests.get(API_URL).content.decode()
+        # ips = res.split('\r\n')
+        # for proxy_ip in ips:
+        #     if proxy_ip.strip() == '':
+        #         continue
+        #     ip_list.append(proxy_ip)
+        else:
+            return None
+
+
+
+
