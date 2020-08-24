@@ -1,0 +1,68 @@
+"""
+包管理
+"""
+try:
+    from gevent import monkey
+    monkey.patch_all()
+    import os
+    import time
+    import threading
+    import csv
+    from configparser import ConfigParser
+    import gevent
+    from gevent.queue import Queue
+    import easygui
+    from tqdm import tqdm
+    import requests
+    from requests.packages.urllib3.exceptions import InsecureRequestWarning
+    from bs4 import BeautifulSoup
+    from lxml import etree
+    from fake_useragent import UserAgent
+    from selenium.webdriver import ChromeOptions, Chrome
+except ModuleNotFoundError as e:
+    print('>>> 检测到您的编程环境中缺少部分功能模块')
+    print('>>> 3s 后为将您预装相应模块，请确保网络通畅.....')
+    print('>>> 若执行完毕无响应或抛出错误，请重启脚本！')
+    time.sleep(2)
+
+    if 'requirements.txt' in os.listdir() :
+        try :
+            os.system('pip install -r {} -i https://pypi.tuna.tsinghua.edu.cn/simple'
+                      .format(os.path.dirname(__file__) + '/requirements.txt'))
+        except Exception :
+            os.system('pip3 install -r {} -i https://pypi.tuna.tsinghua.edu.cn/simple'
+                      .format(os.path.dirname(__file__) + '/requirements.txt'))
+    else:
+        def get_funcModule(name,Update=False) :
+
+            if Update is True:
+                try:
+                    if isinstance(name, str):
+                        os.system('pip install -U {}'.format(name))
+                        return True
+                except Exception as et:
+                    print(et)
+                    print('>>> 模块更新出现未知错误')
+                    return False
+
+            if isinstance(name, list) :
+                try :
+                    target = ' '.join(name)
+                    os.system('pip install {}'.format(target))
+                    return True
+                except Exception as et:
+                    print(et)
+                    print('>>> 模块下载出现未知错误')
+                    pass
+        get_funcModule([
+            'gevent',
+            'requests',
+            'bs4',
+            'fake_useragent',
+            'selenium',
+            'tqdm',
+            'easygui'
+        ])
+
+
+
